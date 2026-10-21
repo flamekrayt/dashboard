@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Bounty Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23171a23'/%3E%3Crect%20x='4'%20y='6'%20width='24'%20height='16'%20rx='2.5'%20fill='none'%20stroke='%23ffb020'%20stroke-width='2.4'/%3E%3Cpath%20d='M12%2027h8M16%2022v5'%20stroke='%23ffb020'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3Cpath%20d='M10%2018v-3M16%2018v-7M22%2018v-5'%20stroke='%232fe06f'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3C/svg%3E">
+
+<!-- =====================================================================
+  SECTION 1: LOOK AND LAYOUT (CSS)
+  Dark theme. On a wide screen the two cards sit side by side and are
+  centred on the page (Energy on the left, Timer on the right).
+  On a phone they stack (Energy first, Timer second).
+====================================================================== -->
+<style>
+  :root {
+    --bg:#0f1117; --card:#171a23; --head:#1d2131; --line:#2a3042;
+    --text:#e8eaf0; --dim:#8b92a6; --amber:#ffb020; --green:#2fe06f;
+    --red:#e0403a; --off:#262b3a; --hl:#222a40;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .hidden { display:none !important; }
+  button, input { font:inherit; }
+  svg { flex:none; }
+
+  /* ----- password screen / loading screen ----- */
+  .center { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .login-card { width:100%; max-width:360px; background:var(--card); border:1px solid var(--line);
+                border-radius:14px; padding:26px 22px; text-align:center; }
+  .login-card h1 { font-size:1.15rem; margin:10px 0 16px; }
+  .login-card input[type=password] { width:100%; padding:12px; border-radius:8px; border:1px solid var(--line);
+                background:var(--bg); color:var(--text); }
+  .remember { display:flex; align-items:center; gap:8px; margin:12px 2px; color:var(--dim); font-size:.92rem; text-align:left; }
+  .remember input { width:18px; height:18px; accent-color:var(--amber); }
+  .btn-main { width:100%; padding:12px; border:0; border-radius:8px; font-weight:700; cursor:pointer;
+              background:var(--amber); color:#1b1400; }
+  .btn-main:disabled, .btn-red:disabled, .btn-amber:disabled { opacity:.55; cursor:wait; }
+  .err { color:#ff7b74; font-size:.92rem; min-height:1.3em; margin-top:10px; }
+  #boot { text-align:center; color:var(--dim); }
+  #boot button { margin-top:12px; padding:10px 20px; border-radius:8px; border:1px solid var(--line);
+                 background:var(--card); color:var(--text); cursor:pointer; }
+
+  /* ----- dashboard ----- */
+  /* The page content is at most 1048px wide and centred. The two cards inside it
+     share the row 40% / 60%, which is about 400px (Energy) and 600px (Timer) when there is room. */
+  #app { max-width:1048px; margin:0 auto; padding:12px 16px 32px; }
+  .topbar { display:flex; justify-content:flex-end; padding:2px 0 12px; }
+  .btn-ghost { display:inline-flex; align-items:center; gap:8px; background:transparent; color:var(--dim);
+               border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer; font-size:.9rem; }
+  .btn-ghost:hover { color:var(--text); }
+  .grid { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
+  @media (min-width:900px) { .grid { grid-template-columns:minmax(0,2fr) minmax(0,3fr); } }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .card-title { display:flex; align-items:center; gap:10px; font-size:1.3rem; font-weight:700; margin:0 0 14px; }
+  .card-title svg { color:var(--amber); }
+
+  /* ----- energy card ----- */
+  .energy { text-align:center; }
+  .energy .card-title { justify-content:flex-start; }
+  .accessed { color:var(--dim); font-size:.95rem; }
+  .big { font-size:5rem; line-height:1.05; font-weight:800; color:var(--amber);
+         text-shadow:0 0 24px rgba(255,176,32,.35); margin:14px 0 2px; }
+  .big-label { color:var(--text); margin-bottom:18px; }
+  .btn-amber, .btn-red { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:0;
+         border-radius:8px; padding:12px 22px; font-weight:700; cursor:pointer; }
+  .btn-amber { background:var(--amber); color:#1b1400; width:100%; max-width:320px; }
+  .btn-red { background:var(--red); color:#fff; min-width:130px; }
+
+  /* ----- timer card ----- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 14px; align-items:flex-end; }
+  .field { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .field label { color:var(--dim); font-size:.82rem; }
+  input[type=datetime-local] { background:var(--bg); color:var(--text); border:1px solid var(--line);
+         border-radius:8px; padding:10px; color-scheme:dark; max-width:100%; }
+  .summary { display:flex; flex-wrap:wrap; gap:6px 22px; margin:14px 0; padding:10px 14px;
+             background:var(--bg); border:1px solid var(--line); border-radius:10px; color:var(--dim); font-size:.95rem; }
+  .summary b { color:var(--text); font-weight:700; }
+  .summary b.amber { color:var(--amber); }
+  @media (max-width:640px) { .summary { flex-direction:column; } }
+  .msg { margin:0 0 12px; font-size:.92rem; color:var(--green); }
+  .msg.bad { color:#ff7b74; }
+
+  /* Fixed column widths, so both bar columns are exactly the same width */
+  .table-wrap { border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  table { width:100%; border-collapse:collapse; table-layout:fixed; }
+  th:nth-child(1) { width:36%; }
+  th:nth-child(2), th:nth-child(3) { width:32%; }
+  th { background:var(--head); color:var(--dim); font-size:.82rem; font-weight:600; padding:10px 8px; text-align:center; }
+  td { padding:7px 8px; border-top:1px solid var(--line); text-align:center; }
+  th:first-child, td:first-child { text-align:left; padding-left:14px; }
+  td small { color:var(--dim); margin-left:4px; }
+  tr.next td { background:var(--hl); }
+  /* Both bars use this same size, so "1 min before" and "Now" bars are identical in length */
+  .bar { display:inline-block; width:80%; max-width:120px; height:14px; border-radius:999px;
+         background:var(--off); border:1px solid #343b50; vertical-align:middle; }
+  .bar.warn.on { background:var(--amber); border-color:var(--amber); box-shadow:0 0 12px rgba(255,176,32,.75); }
+  .bar.go.on   { background:var(--green); border-color:var(--green); box-shadow:0 0 12px rgba(47,224,111,.75); }
+</style>
+</head>
+
+<body>
+
+<!-- =====================================================================
+  SECTION 2: PAGE CONTENT (HTML)
+  Three screens; the script shows only one at a time:
+    #boot  - "Connecting..." (shown while a saved password is being checked)
+    #login - the password screen
+    #app   - the dashboard (Energy card + Timer card)
+====================================================================== -->
+
+<section id="boot" class="center">
+  <div>
+    <div id="bootText">Loading…</div>
+    <button id="retryBtn" class="hidden" type="button">Retry</button>
+  </div>
+</section>
+
+<section id="login" class="center hidden">
+  <form id="loginForm" class="login-card">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffb020" stroke-width="1.8" stroke-linecap="round">
+      <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="#ffb020"/>
+      <path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>
+    </svg>
+    <h1>Enter password</h1>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Password" required>
+    <label class="remember"><input id="remember" type="checkbox" checked> Remember me on this device</label>
+    <button id="loginBtn" class="btn-main" type="submit">Sign in</button>
+    <div id="loginErr" class="err"></div>
+  </form>
+</section>
+
+<main id="app" class="hidden">
+  <div class="topbar">
+    <button id="signOut" class="btn-ghost" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+      </svg>
+      Sign out
+    </button>
+  </div>
+
+  <div class="grid">
+
+    <!-- ENERGY CALCULATOR (first card: left on a computer, top on a phone) -->
+    <section class="card energy">
+      <h2 class="card-title">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+        Energy Calculator
+      </h2>
+      <div class="accessed">Accessed at: <span id="accessedAt">–</span></div>
+      <div class="big" id="energyNum">–</div>
+      <div class="big-label">energy till cutoff time</div>
+      <button id="recalcBtn" class="btn-amber" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
+        Recalculate
+      </button>
+      <div id="energyMsg" class="msg bad hidden" style="margin-top:12px"></div>
+    </section>
+
+    <!-- BOUNTY TIMER (second card: right on a computer, below on a phone) -->
+    <section class="card">
+      <h2 class="card-title">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+          <path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>
+        </svg>
+        Bounty Timer
+      </h2>
+
+      <div class="controls">
+        <button id="resetBtn" class="btn-red" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
+          Reset
+        </button>
+        <div class="field">
+          <label for="when">Release time</label>
+          <input id="when" type="datetime-local">
+        </div>
+      </div>
+
+      <div class="summary">
+        <span>Last release: <b class="amber" id="sLast">–</b></span>
+        <span>Next possible release <b class="amber" id="sNext">–</b><b id="sIn"></b></span>
+        <span>Elapsed: <b id="sElapsed">–</b></span>
+      </div>
+
+      <div id="timerMsg" class="msg hidden"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Possible release</th><th>1 min before</th><th>Now</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+/* =====================================================================
+  SECTION 3: SETTINGS YOU MAY WANT TO CHANGE
+====================================================================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzXFts91HPJI1yqQh3IN6-Yvx64EsDflEINKZnJvsLQetHfN1kf9uJ-jDYBLnNZqQMR/exec';
+const POLL_MS = 60000;        // how often the page quietly re-checks the sheet (so a reset made on another device shows up)
+const CONFIRM_RESET = false;  // true = ask "are you sure?" when pressing Reset; false = reset immediately
+
+const TZ = 'Asia/Singapore';          // everything is shown and calculated in GMT+8,
+const TZ_OFFSET_MS = 8 * 3600000;     // whatever time zone the device itself is set to
+const KEY_PW = 'bd_password';         // name used to save the password in the browser
+const KEY_DEV = 'bd_device';          // name used to save this device's random ID
+
+/* =====================================================================
+  SECTION 4: SMALL HELPERS (saving things in the browser, device ID, browser type)
+====================================================================== */
+const $ = id => document.getElementById(id);
+
+// "Safe" browser-storage helpers: they never crash if storage is blocked (e.g. private mode)
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+
+// A random ID made once per device/browser. It is sent with failed logins so you can tell your devices apart.
+function getDeviceId() {
+  let id = lsGet(KEY_DEV);
+  if (!id) {
+    id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+       : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    lsSet(KEY_DEV, id);
+  }
+  return id;
+}
+
+// Describes the browser in plain words, e.g. "Chrome on Windows"
+function browserInfo() {
+  const ua = navigator.userAgent || '';
+  let b = 'Unknown browser';
+  if (/Edg\//.test(ua)) b = 'Edge';
+  else if (/OPR\/|Opera/.test(ua)) b = 'Opera';
+  else if (/Firefox\/|FxiOS/.test(ua)) b = 'Firefox';
+  else if (/CriOS|Chrome\//.test(ua)) b = 'Chrome';
+  else if (/Safari\//.test(ua)) b = 'Safari';
+  let os = '';
+  if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Android/.test(ua)) os = 'Android';          // checked before Linux (Android UAs mention Linux)
+  else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+  else if (/Mac OS X|Macintosh/.test(ua)) os = 'macOS';
+  else if (/Linux/.test(ua)) os = 'Linux';
+  return os ? b + ' on ' + os : b;
+}
+
+/* =====================================================================
+  SECTION 5: TIME HELPERS (all in Singapore time)
+====================================================================== */
+const timeFmt = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true });
+const dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short' });
+const fmtTime = ms => timeFmt.format(ms);                               // e.g. 12:20 PM
+const dayNo = ms => Math.floor((ms + TZ_OFFSET_MS) / 86400000);         // which Singapore calendar day a moment falls on
+
+// 1505 seconds -> "25m 05s". Longer spans -> "1h 05m 00s" or "2d 03h 10m".
+function dur(ms) {
+  let s = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(s / 86400); s %= 86400;
+  const h = Math.floor(s / 3600);  s %= 3600;
+  const m = Math.floor(s / 60);    s %= 60;
+  const p = n => String(n).padStart(2, '0');
+  if (d) return d + 'd ' + p(h) + 'h ' + p(m) + 'm';
+  if (h) return h + 'h ' + p(m) + 'm ' + p(s) + 's';
+  return m + 'm ' + p(s) + 's';
+}
+
+/* =====================================================================
+  SECTION 6: TALKING TO THE GOOGLE SHEET (via Apps Script)
+  Every request carries the password, which Apps Script checks.
+====================================================================== */
+let currentPassword = null;   // the password for this visit (only kept in memory while the page is open)
+let skew = 0;                 // (server clock) minus (this device's clock), so a wrong device clock does not matter
+let state = { lastRelease: null, cfg: null };
+
+// The "right now" used everywhere: device clock corrected to match the server
+const nowMs = () => Date.now() + skew;
+
+const ERRORS = {
+  wrong_password: 'Incorrect password.',
+  not_configured: 'The password has not been set up in the backend yet.',
+  future_time: "Release time can't be in the future.",
+  bad_time: 'Invalid release time.',
+  server_error: 'Server error. Please try again.',
+  network: 'Could not reach the server. Please try again.',
+};
+const errText = code => ERRORS[code] || 'Something went wrong (' + code + ').';
+
+// Sends one request. Never throws: always returns an object with ok true/false.
+async function callApi(action, password, extra) {
+  const t0 = Date.now();
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // keeps the request "simple" so the browser does not block it
+      body: JSON.stringify(Object.assign({
+        action: action, password: password,
+        deviceId: getDeviceId(), browser: browserInfo(),
+      }, extra || {})),
+    });
+    const t1 = Date.now();
+    const data = await res.json();
+    if (data && data.ok && data.serverNow) skew = data.serverNow - (t0 + t1) / 2;   // sync with the server clock
+    return data || { ok: false, error: 'server_error' };
+  } catch (e) {
+    return { ok: false, error: 'network' };
+  }
+}
+
+/* =====================================================================
+  SECTION 7: SCREENS, PASSWORD, REMEMBER ME, SIGN OUT
+====================================================================== */
+let tickTimer = null, pollTimer = null;
+
+function show(which) {   // which = 'boot' | 'login' | 'app'
+  ['boot', 'login', 'app'].forEach(id => $(id).classList.toggle('hidden', id !== which));
+}
+
+function getSavedPassword() { return lsGet(KEY_PW) || ssGet(KEY_PW); }
+function clearSavedPassword() { lsDel(KEY_PW); ssDel(KEY_PW); }
+
+// "Remember me" ticked   -> saved on this device until you press Sign out
+// "Remember me" unticked -> kept only until this tab/browser is closed
+function savePassword(pw, remember) {
+  clearSavedPassword();
+  if (remember) lsSet(KEY_PW, pw); else ssSet(KEY_PW, pw);
+}
+
+function showLogin(message) {
+  stopTimers();
+  currentPassword = null;
+  $('pw').value = '';
+  $('loginErr').textContent = message || '';
+  $('loginBtn').disabled = false;
+  show('login');
+}
+
+function stopTimers() { clearInterval(tickTimer); clearInterval(pollTimer); tickTimer = pollTimer = null; }
+
+function signOut() { clearSavedPassword(); showLogin(''); }
+
+// Used when the backend says the password is no longer right (e.g. you changed it)
+function forceSignOut(message) { clearSavedPassword(); showLogin(message); }
+
+// Called once the password has been accepted
+function enterApp(data, password) {
+  currentPassword = password;
+  state.lastRelease = null; state.cfg = null; lastKey = '';
+  applyState(data);
+  showEnergy();                                  // first energy count = the moment the page is opened
+  show('app');
+  stopTimers();
+  tickTimer = setInterval(tick, 1000);           // refreshes the timer lights every second (very light work)
+  pollTimer = setInterval(poll, POLL_MS);        // quietly checks the sheet for changes
+}
+
+// Runs when the page opens
+async function init() {
+  const saved = getSavedPassword();
+  if (!saved) return showLogin('');
+  $('bootText').textContent = 'Connecting…';
+  $('retryBtn').classList.add('hidden');
+  show('boot');
+  const res = await callApi('state', saved);
+  if (res.ok) return enterApp(res, saved);
+  if (res.error === 'wrong_password') return forceSignOut('Saved password is no longer valid. Please sign in again.');
+  // Could not reach the server: keep the saved password and offer a retry
+  $('bootText').textContent = errText(res.error);
+  $('retryBtn').classList.remove('hidden');
+}
+
+$('retryBtn').onclick = init;
+$('signOut').onclick = signOut;
+
+$('loginForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const pw = $('pw').value;
+  if (!pw) return;
+  $('loginBtn').disabled = true;
+  $('loginErr').textContent = '';
+  const res = await callApi('state', pw);
+  if (res.ok) {
+    savePassword(pw, $('remember').checked);
+    enterApp(res, pw);
+  } else {
+    $('loginErr').textContent = errText(res.error);
+    $('loginBtn').disabled = false;
+  }
+};
+
+/* =====================================================================
+  SECTION 8: ENERGY CALCULATOR
+  Counts the energy marks (every 5 minutes, on the :00 :05 :10 ... marks)
+  that come AFTER the moment of access, up to and INCLUDING the cutoff.
+  At or after the cutoff time it counts toward tomorrow's cutoff.
+  All of this is done in Singapore time.
+====================================================================== */
+function calcEnergy(atMs, cfg) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(cfg.cutoffTime) || [null, '19', '50'];
+  const cutoff = (Number(m[1]) * 60 + Number(m[2])) * 60000;   // cutoff as "time of day" in ms
+  const step = cfg.energyIntervalMin * 60000;                  // 5 minutes in ms
+
+  const local = atMs + TZ_OFFSET_MS;                           // shift to Singapore time
+  const t = local - Math.floor(local / 86400000) * 86400000;   // time of day right now, in ms
+  const c = (t >= cutoff) ? cutoff + 86400000 : cutoff;        // cutoff already passed? use tomorrow's
+
+  // number of 5-minute marks in the range (now, cutoff]
+  return (Math.floor(c / step) - Math.floor(t / step)) * cfg.energyPerTick;
+}
+
+// Shows the energy count for one moment. deviceMs = the device-clock time of that moment
+// (leave it out to mean "right now"). The server correction (skew) is added here.
+function showEnergy(deviceMs) {
+  const t = (deviceMs === undefined ? Date.now() : deviceMs) + skew;
+  $('energyNum').textContent = calcEnergy(t, state.cfg);
+  $('accessedAt').textContent = fmtTime(t) + ' (GMT+8)';
+}
+
+// INSTANT RECALCULATE
+//   1. The number appears immediately, using the device clock corrected by the last server check.
+//   2. In the background, the page asks the server again (this also re-syncs the clock and the timer).
+//   3. When the reply arrives, the SAME press moment is recalculated with the freshly corrected
+//      clock. The number only changes if the earlier clock correction was off.
+let recalcSeq = 0;      // counts presses, so a late reply to an older press never overwrites a newer number
+$('recalcBtn').onclick = async () => {
+  const pressedAt = Date.now();
+  const myPress = ++recalcSeq;
+  showEnergy(pressedAt);                                      // step 1: instant
+
+  const res = await callApi('state', currentPassword);        // step 2: background check
+  if (res.ok) {
+    applyState(res);
+    $('energyMsg').classList.add('hidden');
+    if (myPress === recalcSeq) showEnergy(pressedAt);         // step 3: confirm / quietly correct
+  } else if (res.error === 'wrong_password') {
+    forceSignOut('Password changed. Please sign in again.');
+  } else if (myPress === recalcSeq) {
+    $('energyMsg').textContent = "Could not reach the server. The number is based on this device's clock.";
+    $('energyMsg').classList.remove('hidden');
+  }
+};
+
+/* =====================================================================
+  SECTION 9: BOUNTY TIMER
+  The sheet only remembers the time of the last release. From that single
+  time the page builds the list of possible release times
+  (+20, +25, +30 ... up to +85 minutes) and lights the bars
+  whenever the clock passes each time.
+====================================================================== */
+let rows = [];        // one entry per table row
+let lastKey = '';     // used to rebuild the table only when something changed
+
+// Takes data from the server and refreshes the page if anything changed
+function applyState(data) {
+  const key = JSON.stringify([data.lastRelease, data.config]);
+  state.lastRelease = data.lastRelease;
+  state.cfg = data.config;
+  if (key !== lastKey) { lastKey = key; buildRows(); }
+  tick();
+}
+
+// Builds the table: one row per possible release time
+function buildRows() {
+  const body = $('rows');
+  body.textContent = '';
+  rows = [];
+  if (state.lastRelease == null) return;
+  const c = state.cfg;
+  const t0 = state.lastRelease;
+  for (let m = c.firstIntervalMin; m <= c.maxMin && rows.length < 300; m += c.stepMin) {
+    const at = t0 + m * 60000;                       // the possible release time
+    const warnAt = at - c.warnLeadMin * 60000;       // 1 minute before it
+    const tr = document.createElement('tr');
+    const tdTime = document.createElement('td');
+    tdTime.textContent = fmtTime(at);
+    if (dayNo(at) !== dayNo(t0)) {                   // past midnight: show a small "+1d" marker
+      const tag = document.createElement('small');
+      tag.textContent = '+' + (dayNo(at) - dayNo(t0)) + 'd';
+      tdTime.appendChild(tag);
+    }
+    const tdWarn = document.createElement('td');
+    const warn = document.createElement('span'); warn.className = 'bar warn'; tdWarn.appendChild(warn);
+    const tdGo = document.createElement('td');
+    const go = document.createElement('span'); go.className = 'bar go'; tdGo.appendChild(go);
+    tr.append(tdTime, tdWarn, tdGo);
+    body.appendChild(tr);
+    rows.push({ at: at, warnAt: warnAt, tr: tr, warn: warn, go: go });
+  }
+}
+
+// Runs every second: lights the bars, highlights the next row, updates the summary
+function tick() {
+  if (!state.cfg) return;
+  if (state.lastRelease == null) {
+    $('sLast').textContent = 'none yet';
+    $('sNext').textContent = '–'; $('sIn').textContent = '';
+    $('sElapsed').textContent = '–';
+    return;
+  }
+  const now = nowMs();
+  const next = rows.find(r => now < r.at);           // first possible release still ahead
+  rows.forEach(r => {
+    r.warn.classList.toggle('on', now >= r.warnAt);  // amber bar: from 1 minute before
+    r.go.classList.toggle('on', now >= r.at);        // green bar: from the release minute
+    r.tr.classList.toggle('next', r === next);       // subtle highlight on the next row
+  });
+
+  const last = state.lastRelease;
+  $('sLast').textContent = (dayNo(last) !== dayNo(now) ? dateFmt.format(last) + ' ' : '') + fmtTime(last);
+  $('sElapsed').textContent = dur(now - last);       // live time since the last release
+  if (next) {
+    $('sNext').textContent = fmtTime(next.at);
+    $('sIn').textContent = ' - in ' + dur(Math.ceil((next.at - now) / 1000) * 1000);
+  } else {
+    $('sNext').textContent = 'none (cycle finished)';
+    $('sIn').textContent = '';
+  }
+}
+
+function timerMessage(text, bad) {
+  const el = $('timerMsg');
+  el.textContent = text;
+  el.classList.toggle('bad', !!bad);
+  el.classList.toggle('hidden', !text);
+}
+
+$('resetBtn').onclick = async () => {
+  const picked = $('when').value;           // "" means: use the current time
+  const extra = {};
+  if (picked) {
+    // The picker is read as Singapore time (GMT+8), whatever the device's own time zone is
+    const ms = Date.parse(picked.length === 16 ? picked + ':00+08:00' : picked + '+08:00');
+    if (isNaN(ms)) return timerMessage('Invalid date/time.', true);
+    if (ms > nowMs() + 60000) return timerMessage("Release time can't be in the future.", true);
+    extra.releaseTime = ms;
+  }
+  if (CONFIRM_RESET && state.lastRelease != null && !confirm('Reset the timer?')) return;
+
+  const btn = $('resetBtn');
+  btn.disabled = true;
+  const res = await callApi('reset', currentPassword, extra);   // the sheet rounds the time down to the nearest 5 minutes
+  btn.disabled = false;
+  if (res.ok) {
+    $('when').value = '';
+    applyState(res);
+    timerMessage('Reset done. Recorded release time: ' + fmtTime(res.lastRelease) + ' (GMT+8)', false);
+  } else if (res.error === 'wrong_password') {
+    forceSignOut('Password changed. Please sign in again.');
+  } else {
+    timerMessage(errText(res.error), true);
+  }
+};
+
+/* =====================================================================
+  SECTION 10: BACKGROUND REFRESH AND START-UP
+====================================================================== */
+// Every POLL_MS (and when you come back to the tab) re-read the sheet,
+// so a reset made on another device appears here. The energy number is NOT touched.
+async function poll() {
+  if (document.hidden || !currentPassword) return;
+  const res = await callApi('state', currentPassword);
+  if (res.ok) applyState(res);
+  else if (res.error === 'wrong_password') forceSignOut('Password changed. Please sign in again.');
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && currentPassword) { poll(); tick(); }
+});
+
+init();
+</script>
+</body>
+</html>
