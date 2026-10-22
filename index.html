@@ -5,13 +5,55 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Bounty Dashboard</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23171a23'/%3E%3Crect%20x='4'%20y='6'%20width='24'%20height='16'%20rx='2.5'%20fill='none'%20stroke='%23ffb020'%20stroke-width='2.4'/%3E%3Cpath%20d='M12%2027h8M16%2022v5'%20stroke='%23ffb020'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3Cpath%20d='M10%2018v-3M16%2018v-7M22%2018v-5'%20stroke='%232fe06f'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3C/svg%3E">
+
+<!-- =====================================================================
+  SECTION 0: SIZE SETTING AND TAB ICON (runs first)
+  UI_SCALE controls the size of EVERYTHING on the page (text, buttons, icons,
+  bars, spacing, card widths).  1 = full size, 0.75 = 25% smaller (same look as
+  75% browser zoom), 0.85 = 15% smaller, and so on.
+  Tip: set your browser zoom back to 100% (Ctrl+0) for this site, otherwise the
+  two reductions add up.
+====================================================================== -->
+<script>
+const UI_SCALE = 0.75;                      // <-- change this number to make the page bigger or smaller
+
+(function () {
+  const root = document.documentElement;
+  const scale = (isFinite(UI_SCALE) && UI_SCALE >= 0.4 && UI_SCALE <= 2) ? UI_SCALE : 1;   // ignore silly values
+  root.style.fontSize = (16 * scale) + 'px';   // all sizes in the CSS below are in "rem", so they follow this
+
+  // Decide the layout from the window width, adjusted for the scale
+  // (the same switch points as before: side by side from 900px wide, tighter summary below 640px)
+  function layout() {
+    const w = window.innerWidth;
+    root.classList.toggle('wide', w >= 900 * scale);      // two cards side by side
+    root.classList.toggle('narrow', w <= 640 * scale);    // phone-sized screens
+  }
+  layout();
+  window.addEventListener('resize', layout);
+
+  // Tab icon (favicon): an amber monitor with three green bars, drawn from this small SVG
+  const svg =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>" +
+    "<rect width='32' height='32' rx='7' fill='#171a23'/>" +
+    "<rect x='4' y='6' width='24' height='16' rx='2.5' fill='none' stroke='#ffb020' stroke-width='2.4'/>" +
+    "<path d='M12 27h8M16 22v5' stroke='#ffb020' stroke-width='2.4' stroke-linecap='round'/>" +
+    "<path d='M10 18v-3M16 18v-7M22 18v-5' stroke='#2fe06f' stroke-width='2.4' stroke-linecap='round'/>" +
+    "</svg>";
+  const icon = document.createElement('link');
+  icon.rel = 'icon';
+  icon.type = 'image/svg+xml';
+  icon.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  document.head.appendChild(icon);
+})();
+</script>
 
 <!-- =====================================================================
   SECTION 1: LOOK AND LAYOUT (CSS)
   Dark theme. On a wide screen the two cards sit side by side and are
   centred on the page (Energy on the left, Timer on the right).
   On a phone they stack (Energy first, Timer second).
+  All sizes are in "rem" (1rem = 16px x UI_SCALE), so UI_SCALE resizes everything.
 ====================================================================== -->
 <style>
   :root {
@@ -20,42 +62,48 @@
     --red:#e0403a; --off:#262b3a; --hl:#222a40;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   body { margin:0; background:var(--bg); color:var(--text);
-         font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+         font:1rem/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
   .hidden { display:none !important; }
   button, input { font:inherit; }
   svg { flex:none; }
+  .i16 { width:1rem;     height:1rem; }
+  .i18 { width:1.125rem; height:1.125rem; }
+  .i26 { width:1.625rem; height:1.625rem; }
+  .i28 { width:1.75rem;  height:1.75rem; }
+  .i44 { width:2.75rem;  height:2.75rem; }
 
   /* ----- password screen / loading screen ----- */
-  .center { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; }
-  .login-card { width:100%; max-width:360px; background:var(--card); border:1px solid var(--line);
-                border-radius:14px; padding:26px 22px; text-align:center; }
-  .login-card h1 { font-size:1.15rem; margin:10px 0 16px; }
-  .login-card input[type=password] { width:100%; padding:12px; border-radius:8px; border:1px solid var(--line);
+  .center { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+  .login-card { width:100%; max-width:22.5rem; background:var(--card); border:1px solid var(--line);
+                border-radius:.875rem; padding:1.625rem 1.375rem; text-align:center; }
+  .login-card h1 { font-size:1.15rem; margin:.625rem 0 1rem; }
+  .login-card input[type=password] { width:100%; padding:.75rem; border-radius:.5rem; border:1px solid var(--line);
                 background:var(--bg); color:var(--text); }
-  .remember { display:flex; align-items:center; gap:8px; margin:12px 2px; color:var(--dim); font-size:.92rem; text-align:left; }
-  .remember input { width:18px; height:18px; accent-color:var(--amber); }
-  .btn-main { width:100%; padding:12px; border:0; border-radius:8px; font-weight:700; cursor:pointer;
+  .remember { display:flex; align-items:center; gap:.5rem; margin:.75rem .125rem; color:var(--dim); font-size:.92rem; text-align:left; }
+  .remember input { width:1.125rem; height:1.125rem; accent-color:var(--amber); }
+  .btn-main { width:100%; padding:.75rem; border:0; border-radius:.5rem; font-weight:700; cursor:pointer;
               background:var(--amber); color:#1b1400; }
   .btn-main:disabled, .btn-red:disabled, .btn-amber:disabled { opacity:.55; cursor:wait; }
-  .err { color:#ff7b74; font-size:.92rem; min-height:1.3em; margin-top:10px; }
+  .err { color:#ff7b74; font-size:.92rem; min-height:1.3em; margin-top:.625rem; }
   #boot { text-align:center; color:var(--dim); }
-  #boot button { margin-top:12px; padding:10px 20px; border-radius:8px; border:1px solid var(--line);
+  #boot button { margin-top:.75rem; padding:.625rem 1.25rem; border-radius:.5rem; border:1px solid var(--line);
                  background:var(--card); color:var(--text); cursor:pointer; }
 
   /* ----- dashboard ----- */
-  /* The page content is at most 1048px wide and centred. The two cards inside it
-     share the row 40% / 60%, which is about 400px (Energy) and 600px (Timer) when there is room. */
-  #app { max-width:1048px; margin:0 auto; padding:12px 16px 32px; }
-  .topbar { display:flex; justify-content:flex-end; padding:2px 0 12px; }
-  .btn-ghost { display:inline-flex; align-items:center; gap:8px; background:transparent; color:var(--dim);
-               border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer; font-size:.9rem; }
+  /* The page content is at most 65.5rem wide and centred. The two cards inside it
+     share the row 40% / 60% when the window is wide enough (the "wide" class is set in Section 0). */
+  #app { max-width:65.5rem; margin:0 auto; padding:.75rem 1rem 2rem; }
+  .topbar { display:flex; justify-content:flex-end; padding:.125rem 0 .75rem; }
+  .btn-ghost { display:inline-flex; align-items:center; gap:.5rem; background:transparent; color:var(--dim);
+               border:1px solid var(--line); border-radius:.5rem; padding:.4375rem .75rem; cursor:pointer; font-size:.9rem; }
   .btn-ghost:hover { color:var(--text); }
-  .grid { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
-  @media (min-width:900px) { .grid { grid-template-columns:minmax(0,2fr) minmax(0,3fr); } }
+  .grid { display:grid; grid-template-columns:1fr; gap:1rem; align-items:start; }
+  .wide .grid { grid-template-columns:minmax(0,2fr) minmax(0,3fr); }
 
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; }
-  .card-title { display:flex; align-items:center; gap:10px; font-size:1.3rem; font-weight:700; margin:0 0 14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:.875rem; padding:1.125rem; }
+  .card-title { display:flex; align-items:center; gap:.625rem; font-size:1.3rem; font-weight:700; margin:0 0 .875rem; }
   .card-title svg { color:var(--amber); }
 
   /* ----- energy card ----- */
@@ -63,42 +111,40 @@
   .energy .card-title { justify-content:flex-start; }
   .accessed { color:var(--dim); font-size:.95rem; }
   .big { font-size:5rem; line-height:1.05; font-weight:800; color:var(--amber);
-         text-shadow:0 0 24px rgba(255,176,32,.35); margin:14px 0 2px; }
-  .big-label { color:var(--text); margin-bottom:18px; }
-  .btn-amber, .btn-red { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:0;
-         border-radius:8px; padding:12px 22px; font-weight:700; cursor:pointer; }
-  .btn-amber { background:var(--amber); color:#1b1400; width:100%; max-width:320px; }
-  .btn-red { background:var(--red); color:#fff; min-width:130px; }
+         text-shadow:0 0 1.5rem rgba(255,176,32,.35); margin:.875rem 0 .125rem; }
+  .big-label { color:var(--text); margin-bottom:1.125rem; }
+  .btn-amber, .btn-red { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; border:0;
+         border-radius:.5rem; padding:.75rem 1.375rem; font-weight:700; cursor:pointer; }
+  .btn-amber { background:var(--amber); color:#1b1400; width:100%; max-width:20rem; }
+  .btn-red { background:var(--red); color:#fff; min-width:8.125rem; }
 
   /* ----- timer card ----- */
-  .controls { display:flex; flex-wrap:wrap; gap:12px 14px; align-items:flex-end; }
-  .field { display:flex; flex-direction:column; gap:4px; min-width:0; }
-  .field label { color:var(--dim); font-size:.82rem; }
+  .controls { display:flex; flex-wrap:wrap; gap:.75rem .875rem; align-items:center; }
   input[type=datetime-local] { background:var(--bg); color:var(--text); border:1px solid var(--line);
-         border-radius:8px; padding:10px; color-scheme:dark; max-width:100%; }
-  .summary { display:flex; flex-wrap:wrap; gap:6px 22px; margin:14px 0; padding:10px 14px;
-             background:var(--bg); border:1px solid var(--line); border-radius:10px; color:var(--dim); font-size:.95rem; }
+         border-radius:.5rem; padding:.625rem; color-scheme:dark; max-width:100%; min-width:0; }
+  .summary { display:flex; flex-wrap:wrap; gap:.375rem 1.375rem; margin:.875rem 0; padding:.625rem .875rem;
+             background:var(--bg); border:1px solid var(--line); border-radius:.625rem; color:var(--dim); font-size:.95rem; }
   .summary b { color:var(--text); font-weight:700; }
   .summary b.amber { color:var(--amber); }
-  @media (max-width:640px) { .summary { flex-direction:column; } }
-  .msg { margin:0 0 12px; font-size:.92rem; color:var(--green); }
+  .narrow .summary { flex-direction:column; }
+  .msg { margin:0 0 .75rem; font-size:.92rem; color:var(--green); }
   .msg.bad { color:#ff7b74; }
 
   /* Fixed column widths, so both bar columns are exactly the same width */
-  .table-wrap { border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .table-wrap { border:1px solid var(--line); border-radius:.625rem; overflow:hidden; }
   table { width:100%; border-collapse:collapse; table-layout:fixed; }
   th:nth-child(1) { width:36%; }
   th:nth-child(2), th:nth-child(3) { width:32%; }
-  th { background:var(--head); color:var(--dim); font-size:.82rem; font-weight:600; padding:10px 8px; text-align:center; }
-  td { padding:7px 8px; border-top:1px solid var(--line); text-align:center; }
-  th:first-child, td:first-child { text-align:left; padding-left:14px; }
-  td small { color:var(--dim); margin-left:4px; }
+  th { background:var(--head); color:var(--dim); font-size:.82rem; font-weight:600; padding:.625rem .5rem; text-align:center; }
+  td { padding:.4375rem .5rem; border-top:1px solid var(--line); text-align:center; }
+  th:first-child, td:first-child { text-align:left; padding-left:.875rem; }
+  td small { color:var(--dim); margin-left:.25rem; }
   tr.next td { background:var(--hl); }
   /* Both bars use this same size, so "1 min before" and "Now" bars are identical in length */
-  .bar { display:inline-block; width:80%; max-width:120px; height:14px; border-radius:999px;
+  .bar { display:inline-block; width:80%; max-width:7.5rem; height:.875rem; border-radius:999px;
          background:var(--off); border:1px solid #343b50; vertical-align:middle; }
-  .bar.warn.on { background:var(--amber); border-color:var(--amber); box-shadow:0 0 12px rgba(255,176,32,.75); }
-  .bar.go.on   { background:var(--green); border-color:var(--green); box-shadow:0 0 12px rgba(47,224,111,.75); }
+  .bar.warn.on { background:var(--amber); border-color:var(--amber); box-shadow:0 0 .75rem rgba(255,176,32,.75); }
+  .bar.go.on   { background:var(--green); border-color:var(--green); box-shadow:0 0 .75rem rgba(47,224,111,.75); }
 </style>
 </head>
 
@@ -121,7 +167,7 @@
 
 <section id="login" class="center hidden">
   <form id="loginForm" class="login-card">
-    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffb020" stroke-width="1.8" stroke-linecap="round">
+    <svg class="i44" viewBox="0 0 24 24" fill="none" stroke="#ffb020" stroke-width="1.8" stroke-linecap="round">
       <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="#ffb020"/>
       <path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>
     </svg>
@@ -136,7 +182,7 @@
 <main id="app" class="hidden">
   <div class="topbar">
     <button id="signOut" class="btn-ghost" type="button">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="i16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
       </svg>
       Sign out
@@ -148,23 +194,23 @@
     <!-- ENERGY CALCULATOR (first card: left on a computer, top on a phone) -->
     <section class="card energy">
       <h2 class="card-title">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+        <svg class="i26" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
         Energy Calculator
       </h2>
       <div class="accessed">Accessed at: <span id="accessedAt">–</span></div>
       <div class="big" id="energyNum">–</div>
       <div class="big-label">energy till cutoff time</div>
       <button id="recalcBtn" class="btn-amber" type="button">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
+        <svg class="i18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
         Recalculate
       </button>
-      <div id="energyMsg" class="msg bad hidden" style="margin-top:12px"></div>
+      <div id="energyMsg" class="msg bad hidden" style="margin-top:.75rem"></div>
     </section>
 
     <!-- BOUNTY TIMER (second card: right on a computer, below on a phone) -->
     <section class="card">
       <h2 class="card-title">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <svg class="i28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
           <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>
           <path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>
         </svg>
@@ -173,13 +219,11 @@
 
       <div class="controls">
         <button id="resetBtn" class="btn-red" type="button">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
+          <svg class="i18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
           Reset
         </button>
-        <div class="field">
-          <label for="when">Release time</label>
-          <input id="when" type="datetime-local">
-        </div>
+        <!-- Date/time of the release. Leave empty to use the current time. (No visible label; aria-label is for screen readers.) -->
+        <input id="when" type="datetime-local" aria-label="Release time">
       </div>
 
       <div class="summary">
@@ -204,6 +248,7 @@
 <script>
 /* =====================================================================
   SECTION 3: SETTINGS YOU MAY WANT TO CHANGE
+  (The page size setting, UI_SCALE, is at the very top of this file, in Section 0.)
 ====================================================================== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbzXFts91HPJI1yqQh3IN6-Yvx64EsDflEINKZnJvsLQetHfN1kf9uJ-jDYBLnNZqQMR/exec';
 const POLL_MS = 60000;        // how often the page quietly re-checks the sheet (so a reset made on another device shows up)
